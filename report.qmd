@@ -6,9 +6,11 @@ toc: true
 format:
   html:
     html-math-method: katex
+    code-tools: false
     responsive: true
     self-contained: true
     output-file: "index"
+    theme: lux
 execute:
   warning: false
   echo: false
@@ -58,7 +60,7 @@ plot_table = function(df, c , i){
     locations = cells_body(
       columns = c(numero, DL, P1_pred,  mean, sd))) %>%
   cols_width(everything() ~ px(100)) %>% 
-     gtsave(here('report', 'images',  paste0("temp", "_", c, i, ".png")), expand = 10)
+     gtsave(here('report',  paste0("temp", "_", c, i, ".png")), expand = 10)
     
   } else{
     df %>%
@@ -76,7 +78,7 @@ plot_table = function(df, c , i){
     locations = cells_body(
       columns = c(numero, DL, P1_pred))) %>%
   cols_width(everything() ~ px(100)) %>% 
-     gtsave(here('report', 'images',  paste0("temp", "_", c, i, ".png")), expand = 10)
+     gtsave(here('report',  paste0("temp", "_", c, i, ".png")), expand = 10)
   }
    
   
@@ -244,7 +246,7 @@ for (c in 1:length(list_reunion)) {
   
   plot_table(data_filter, c, i)
   
-  cat("![](images/temp", "_", c, i,".png){fig-align='center' width='700'}", sep = '')
+  cat("![](report/temp", "_", c, i,".png){fig-align='center' width='700'}", sep = '')
   
   cat("\n")
   

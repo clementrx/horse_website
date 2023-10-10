@@ -3,6 +3,7 @@ library(here)
 library(lubridate)
 
 dir.create(here('data'), showWarnings = FALSE)
+dir.create(here('report'), showWarnings = FALSE)
 
 drive_deauth()
 drive_user()
