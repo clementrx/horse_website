@@ -1,0 +1,254 @@
+---
+title: "Predictions"
+author: "Clément Rieux"
+date: today
+toc: true
+format:
+  html:
+    html-math-method: katex
+    responsive: true
+    self-contained: true
+    output-file: "index"
+execute:
+  warning: false
+  echo: false
+---
+
+## Présentation
+
+Bla bla bla
+
+```{r}
+
+library(dplyr)
+library(fst)
+library(here)
+library(ggplot2)
+library(lubridate)
+library(rcartocolor)
+library(gt)
+library(gtExtras)
+
+# function
+plot_table = function(df, c , i){
+  
+  value = unique(df$type_course)
+  
+  if(value %in% c('Attelé', 'Monté') == T){
+    df %>%
+    mutate(temps_hist = mean_ratio_temps_last12_month) %>%
+  select(numero, DL, P1_pred, historique, mean_ratio_temps_last12_month, temps_hist,  mean, sd) %>%
+  arrange(-DL) %>%
+  mutate(DL = formattable::percent(DL),
+         P1_pred = formattable::percent(P1_pred),
+         mean = round(mean,2),
+         sd = round(sd,2)) %>%
+  gt() %>%
+  gt_theme_espn() %>%
+  gt_color_rows(DL, palette = c("white", "green"), domain = c(0,1)) %>%
+  gt_color_rows(P1_pred, palette = "ggsci::blue_material", domain = c(0,1)) %>%
+  gt_plt_winloss(historique, max_wins = 10) %>%
+  gt_plt_dist(mean_ratio_temps_last12_month, type = "boxplot", line_color = "blue",
+              fill_color = "gray56") %>%
+  gtExtras::gt_plt_sparkline(temps_hist) %>%
+  gt_color_rows(mean, palette = "ggsci::green_material", domain = range(round(df$mean,2), na.rm = T)) %>%  
+      gt_color_rows(sd, palette = "ggsci::orange_material", domain = range(round(df$sd,2), na.rm = T)) %>% 
+  tab_style(
+    style = cell_text(size = px(11)),
+    locations = cells_body(
+      columns = c(numero, DL, P1_pred,  mean, sd))) %>%
+  cols_width(everything() ~ px(100)) %>% 
+     gtsave(here('report', 'images',  paste0("temp", "_", c, i, ".png")), expand = 10)
+    
+  } else{
+    df %>%
+  select(numero, DL, P1_pred, historique) %>%
+  arrange(-DL) %>%
+  mutate(DL = formattable::percent(DL),
+         P1_pred = formattable::percent(P1_pred)) %>%
+  gt() %>%
+  gt_theme_espn() %>%
+  gt_color_rows(DL, palette = c("white", "green"), domain = c(0,1)) %>%
+  gt_color_rows(P1_pred, palette = "ggsci::blue_material", domain = c(0,1)) %>%
+  gt_plt_winloss(historique, max_wins = 10) %>%
+  tab_style(
+    style = cell_text(size = px(11)),
+    locations = cells_body(
+      columns = c(numero, DL, P1_pred))) %>%
+  cols_width(everything() ~ px(100)) %>% 
+     gtsave(here('report', 'images',  paste0("temp", "_", c, i, ".png")), expand = 10)
+  }
+   
+  
+}
+
+load(here('data',
+  paste0(gsub('-','', today()),
+         '_pred_trot_DL.rda')))
+
+data_trot <-  export 
+
+```
+
+## Les chevaux à suivre
+
+```{r}
+#| echo=FALSE,
+#| results='asis'
+
+cat("  \n### Prédiction des course de la journée du",  
+    as.character(format(today(),'%A %d %B')),
+    "\n")
+
+cat("  \n#### Les chevaux du jour à suivre : ",
+    "\n")
+
+best = data_trot %>% 
+  mutate(best = ifelse(P1_pred > 0.5,
+                       1,
+                       0)) %>% 
+  filter(best == 1) %>% 
+  group_by(lien) %>% 
+  mutate(id = cur_group_id()) %>% 
+  ungroup() %>% 
+  arrange(DL)
+  
+if(nrow(best) >=1){
+       for (num in 1:length(unique(best$infos_reunion))){
+
+         id_reunion = unique(best$infos_reunion)[num]
+         reunion = best %>% filter(infos_reunion == id_reunion)
+         
+         # cat("\n*",paste0('**', id_reunion, '**'))
+         cat("\n*", paste("**",id_reunion,"**",sep=""),'\n\n')
+         
+         for (c in 1:length(unique(reunion$course))){
+           
+           id_course = unique(reunion$course)[c]
+           course = reunion %>% filter(course == id_course)
+           
+           cat("\n    +",paste0(id_course))
+           
+           for (h in 1:length(unique(course$Cheval))){
+             
+             num_horse = course$numero[h]
+             id_horse = course$Cheval[h]
+             prob =  course$DL[h]
+             cat("\n        -", paste0(num_horse, '-', id_horse, " : ",
+     "<span style=\"background-color: #2DAF29\">",
+    paste0(as.character(round(prob,2)*100) , "%"), 
+    "</span>",
+    "\n"))
+           }
+         }
+         }
+}else{
+  
+  cat("  \n### Les chevaux du jour à suivre : ",
+    "\n",
+    "Pas de paris aujourd'hui"
+    )
+  
+}
+
+```
+
+## Réunions
+
+```{r results = "asis", echo = FALSE}
+
+
+list_reunion = unique(data_trot$infos_reunion)
+
+for (c in 1:length(list_reunion)) {
+  
+  cat("  \n##",  unique(list_reunion[c]), "\n")
+  
+  course = data_trot %>% 
+    filter(infos_reunion == unique(list_reunion[c])) 
+  
+  list_course = unique(course$lien[!is.na(course$lien)])
+  
+  for (i in 1:length(list_course)) {
+  
+  data_filter = data_trot %>%
+    filter(lien == list_course[i]) %>% 
+    mutate(label = paste0(numero, '-',  Cheval)) %>%
+      arrange(desc(as.integer(numero))) %>%
+      mutate(label=factor(label,label))
+  
+  cat("  \n###",  unique(data_filter$course), "\n")
+  # cat("  \n", unique(data_filter$h_depart[i]), "\n")
+  
+  p <- ggplot(data_filter, aes(x = P1_pred,
+                        y = label,
+                        fill = DL)) +
+  geom_col(width = 0.5) +
+  geom_segment(
+    aes(x=0, xend=DL, y=label, yend=label),
+    color=case_when(
+      data_filter$rank_P1 == 1 ~ "#CC9900",
+      data_filter$rank_P1 == 2 ~ "slategrey",
+      data_filter$rank_P1 == 3 ~ "#99650F",
+      TRUE ~ 'black'
+    ),
+    size=ifelse(data_filter$rank_P1 %in% c(1,2,3), 1, 0.7)
+  ) +
+  geom_point(
+    aes(x = DL, y = label),
+    color=case_when(
+      data_filter$rank_P1 == 1 ~ "#CC9900",
+      data_filter$rank_P1 == 2 ~ "slategrey",
+      data_filter$rank_P1 == 3 ~ "#99650F",
+      TRUE ~ 'black'
+    ),
+    size=ifelse(data_filter$rank_P1 %in% c(1,2,3), 3, 1)
+  ) +
+  geom_text(aes(x = DL, label = paste0(round(DL*100, 2), "%")), 
+            position = position_dodge(width=0.9), hjust = -0.6,
+            size = 3) +
+  # geom_vline(
+  #   xintercept=ifelse(data_filter$data == 'trot',
+  #                                pred_win_trot,
+  #                                pred_win_galop),
+  #   linetype="dashed", color = "red") +
+  # geom_vline(xintercept = ifelse(data_filter$data == 'trot',
+  #                                p1_pred_trot,
+  #                                p1_pred_galop),
+  #            linetype="dotted", color = "blue") +
+  scale_fill_carto_c(palette = "BluYl",
+                     direction = -1,
+                     name = "",
+                     limits = c(0, 0.8),  ## max percent overall
+                     breaks = seq(0, 0.8, by = 0.1),
+                     labels = glue::glue("{seq(0, 80, by = 10)}%")) +
+  scale_x_continuous(labels = scales::percent, limits = c(0,1),
+                     breaks = seq(0, 1, by = 0.1)) +
+  labs(x = "", y = "") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_blank(),
+    axis.text = element_text(color = "black", size = 8, face = "bold"),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_line(color = "gray80", size = 0.5),
+    panel.grid.minor.y = element_blank(),
+    legend.position = "none",
+    legend.key.width= unit(3, 'cm')
+  )
+  
+  print(p)
+  
+  cat("\n")
+  
+  plot_table(data_filter, c, i)
+  
+  cat("![](images/temp", "_", c, i,".png){fig-align='center' width='700'}", sep = '')
+  
+  cat("\n")
+  
+  }
+}
+```
+
