@@ -23,7 +23,6 @@ Bla bla bla
 ```{r}
 
 library(dplyr)
-library(fst)
 library(here)
 library(ggplot2)
 library(lubridate)
