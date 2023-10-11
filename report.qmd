@@ -29,6 +29,7 @@ library(lubridate)
 library(rcartocolor)
 library(gt)
 library(gtExtras)
+library(formattable)
 
 # function
 plot_table = function(df, c , i){
